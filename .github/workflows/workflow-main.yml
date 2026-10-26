@@ -1,0 +1,23 @@
+name: "[PROD] - Observability Deploy"
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Execute Deploy
+    uses: ./.github/workflows/execute-deploy.yml
+    with:
+      environment: 'prod'
+      github_environment: 'production'
+    secrets:
+      vps-host: ${{ secrets.VPS_HOST }}
+      vps-username: ${{ secrets.VPS_USERNAME }}
+      vps-ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      APP_SECRETS: ${{ secrets.APP_SECRETS }}
