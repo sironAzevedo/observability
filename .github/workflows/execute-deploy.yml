@@ -72,7 +72,8 @@ jobs:
           
           sudo apt-get update && sudo apt-get install -y jq
           APP_NAME=$(jq -r '.nameAPP // "observability-stack"' "$CONFIG_PATH")
-          DEPLOY_PATH=$(jq -r '.deployPath // "/opt/observability"' "$CONFIG_PATH")
+          DEPLOY_PATH=$(jq -r '.deployPath // "observability"' "$CONFIG_PATH")
+          SCP_TARGET=$(echo "$DEPLOY_PATH" | sed 's|^~/||')
           DOCKER_NETWORK=$(jq -r '.dockerNetwork // "app-network"' "$CONFIG_PATH")
           ES_PORT=$(jq -r '.ports.elasticsearch // "9200"' "$CONFIG_PATH")
           KIBANA_PORT=$(jq -r '.ports.kibana // "5601"' "$CONFIG_PATH")
@@ -80,6 +81,7 @@ jobs:
           
           echo "APP_NAME=${APP_NAME}" >> $GITHUB_OUTPUT
           echo "DEPLOY_PATH=${DEPLOY_PATH}" >> $GITHUB_OUTPUT
+          echo "SCP_TARGET=${SCP_TARGET}" >> $GITHUB_OUTPUT
           echo "DOCKER_NETWORK=${DOCKER_NETWORK}" >> $GITHUB_OUTPUT
           echo "ES_PORT=${ES_PORT}" >> $GITHUB_OUTPUT
           echo "KIBANA_PORT=${KIBANA_PORT}" >> $GITHUB_OUTPUT
@@ -87,6 +89,7 @@ jobs:
           
           echo "Application: $APP_NAME"
           echo "Deploy Path: $DEPLOY_PATH"
+          echo "SCP Target: $SCP_TARGET"
           echo "Docker Network: $DOCKER_NETWORK"
 
       - name: Extract Release Version for Deploy
@@ -163,9 +166,12 @@ jobs:
           script: |
             set -euo pipefail
             DEPLOY_PATH="${{ steps.json_config.outputs.DEPLOY_PATH }}"
+            DEPLOY_PATH="${DEPLOY_PATH/#\~/$HOME}"
+            if [[ "$DEPLOY_PATH" != /* ]]; then
+              DEPLOY_PATH="$HOME/$DEPLOY_PATH"
+            fi
             echo "Garantindo existência do diretório de destino: $DEPLOY_PATH"
-            sudo mkdir -p "$DEPLOY_PATH"
-            sudo chown -R "$(whoami)":"$(whoami)" "$DEPLOY_PATH"
+            mkdir -p "$DEPLOY_PATH"
 
       - name: Transfer Project Files to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -174,7 +180,7 @@ jobs:
           username: ${{ secrets.vps-username }}
           key: ${{ secrets.vps-ssh-private-key }}
           source: "docker-compose.yml,config,scripts,.env"
-          target: ${{ steps.json_config.outputs.DEPLOY_PATH }}
+          target: ${{ steps.json_config.outputs.SCP_TARGET }}
           overwrite: true
 
       - name: Execute Deploy and Health Check on VPS
@@ -186,6 +192,10 @@ jobs:
           script: |
             set -euo pipefail
             DEPLOY_PATH="${{ steps.json_config.outputs.DEPLOY_PATH }}"
+            DEPLOY_PATH="${DEPLOY_PATH/#\~/$HOME}"
+            if [[ "$DEPLOY_PATH" != /* ]]; then
+              DEPLOY_PATH="$HOME/$DEPLOY_PATH"
+            fi
             DOCKER_NETWORK="${{ steps.json_config.outputs.DOCKER_NETWORK }}"
             ES_PORT="${{ steps.json_config.outputs.ES_PORT }}"
             KIBANA_PORT="${{ steps.json_config.outputs.KIBANA_PORT }}"
@@ -195,18 +205,21 @@ jobs:
 
             echo "=========================================================="
             echo "🚀 Iniciando deploy da stack de observabilidade na VPS..."
+            echo "📁 Diretório: $DEPLOY_PATH"
             echo "=========================================================="
 
-            # 1. Ajuste de Kernel para o Elasticsearch
+            # 1. Verificação do Kernel para o Elasticsearch
             CURRENT_MAP=$(sysctl -n vm.max_map_count 2>/dev/null || echo 0)
             if [ "$CURRENT_MAP" -lt 262144 ]; then
-              echo "Ajustando vm.max_map_count para 262144..."
-              sudo sysctl -w vm.max_map_count=262144 || true
+              echo "⚠️ ATENÇÃO: vm.max_map_count atual ($CURRENT_MAP) é inferior a 262144."
+              echo "Se o Elasticsearch falhar, execute na VPS: sudo sysctl -w vm.max_map_count=262144"
+            else
+              echo "✅ vm.max_map_count do kernel verificado ($CURRENT_MAP >= 262144)."
             fi
 
             # 2. Garantir que a rede Docker compartilhada existe
             if ! docker network inspect "$DOCKER_NETWORK" > /dev/null 2>&1; then
-              echo "Criando rede docker externa: $DOCKER_NETWORK..."
+              echo "Criando rede docker: $DOCKER_NETWORK..."
               docker network create "$DOCKER_NETWORK" || true
             fi
 
