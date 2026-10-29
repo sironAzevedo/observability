@@ -269,8 +269,15 @@ jobs:
             echo "=========================================================="
 
       - name: Create and Push Release Tag in GitHub
-        if: success() && inputs.override_version == '' && secrets.github-token != ''
+        if: success() && inputs.override_version == ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
         run: |
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "⚠️ GITHUB_TOKEN não configurado, pulando criação de tag."
+            exit 0
+          fi
+
           APP_VERSION="${{ steps.versioning.outputs.APP_VERSION }}"
           TAG_NAME="v${APP_VERSION#v}"
           
@@ -280,5 +287,3 @@ jobs:
           echo "Criando e enviando a tag $TAG_NAME para o repositório..."
           git tag -f "$TAG_NAME" -m "Release $APP_VERSION implantada com sucesso em produção"
           git push origin "$TAG_NAME" --force
-        env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
