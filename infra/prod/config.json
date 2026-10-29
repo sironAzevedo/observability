@@ -1,0 +1,66 @@
+{
+  "nameAPP": "observability-stack",
+  "port": "5601",
+  "deployPath": "/opt/observability",
+  "dockerNetwork": "app-network",
+  "configContainer": {
+    "cpus": "2.0",
+    "memory": "2G",
+    "memorySwap": "3G"
+  },
+  "ports": {
+    "elasticsearch": "9200",
+    "kibana": "5601",
+    "logstash": "5044"
+  },
+  "environment": [
+    {
+      "name": "ENVIRONMENT",
+      "value": "prod"
+    },
+    {
+      "name": "ELASTIC_VERSION",
+      "value": "8.13.0"
+    },
+    {
+      "name": "ELASTIC_SECURITY_ENABLED",
+      "value": "false"
+    },
+    {
+      "name": "ES_HEAP",
+      "value": "512m"
+    },
+    {
+      "name": "LS_HEAP",
+      "value": "512m"
+    },
+    {
+      "name": "ES_PORT",
+      "value": "9200"
+    },
+    {
+      "name": "KIBANA_PORT",
+      "value": "5601"
+    },
+    {
+      "name": "LOGSTASH_PORT",
+      "value": "5044"
+    },
+    {
+      "name": "APP_NETWORK_NAME",
+      "value": "app-network"
+    },
+    {
+      "name": "TELEGRAM_ENDPOINT",
+      "value": "https://api.telegram.org"
+    },
+    {
+      "name": "TELEGRAM_BOT_TOKEN",
+      "value": "SECRET::TELEGRAM_BOT_TOKEN"
+    },
+    {
+      "name": "TELEGRAM_CHAT_ID",
+      "value": "SECRET::TELEGRAM_CHAT_ID"
+    }
+  ]
+}

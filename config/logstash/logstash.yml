@@ -1,0 +1,14 @@
+# Logstash Performance Tuning Configuration
+# Conforme Guia Técnico Avançado Elastic Stack
+
+# Quantidade de workers paralelos para execução de filtros e saídas
+pipeline.workers: 2
+
+# Tamanho do lote de eventos antes de enviar via Bulk API para o Elasticsearch
+pipeline.batch.size: 250
+
+# Tempo máximo de espera (ms) para fechar um batch caso batch.size não seja atingido
+pipeline.batch.delay: 50
+
+# Tipo de fila (memory ou persisted). 'persisted' previne perda de dados em picos
+queue.type: memory

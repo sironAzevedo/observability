@@ -1,0 +1,56 @@
+{
+  "index_patterns": ["microservices-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "service": {
+          "type": "keyword",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            },
+            "text": {
+              "type": "text"
+            }
+          }
+        },
+        "service.name": {
+          "type": "keyword"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text"
+        },
+        "transaction.id": {
+          "type": "keyword"
+        },
+        "transactionid": {
+          "type": "keyword"
+        },
+        "container": {
+          "properties": {
+            "name": {
+              "type": "keyword"
+            },
+            "id": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    }
+  }
+}
