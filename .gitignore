@@ -1,0 +1,32 @@
+# Environment Variables & Secrets
+.env
+.env.local
+*.env
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Elastic Stack local volumes & data
+esdata/
+data/
+logs/
+*.log
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Temporary files
+tmp/
+temp/

@@ -1,0 +1,66 @@
+name: "[RELEASE] - Build & Publish"
+
+on:
+  push:
+    branches:
+      - 'release/**'
+      - 'release/*'
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  validate_and_open_pr:
+    name: Validate Release and Open PR to Main
+    if: github.event.created != true && !contains(github.event.head_commit.message, 'chore(release)')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if feature code has been merged into release branch
+        run: |
+          git fetch origin main
+          if git diff --quiet origin/main HEAD; then
+            echo "⚠️ A branch de release é idêntica à main (o PR da feature ainda não foi mesclado)."
+            echo "Saindo sem executar."
+            exit 0
+          fi
+
+      - name: Extract Release Version from Branch Name
+        id: versioning
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          APP_VERSION="${BRANCH_NAME#release/}"
+          echo "APP_VERSION=${APP_VERSION}" >> $GITHUB_OUTPUT
+          echo "Extraída versão da release a partir da branch: ${APP_VERSION}"
+
+      - name: Validate Stack Configurations
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          jq . infra/prod/config.json > /dev/null
+          jq . config/elasticsearch/index-template.json > /dev/null
+          jq . config/elasticsearch/ilm-policy.json > /dev/null
+          
+          cp .env.example .env
+          docker compose config > /dev/null
+          rm .env
+          echo "✅ Configurações e compose validados com sucesso!"
+
+      - name: Create Pull Request to Main via GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          APP_VERSION="${{ steps.versioning.outputs.APP_VERSION }}"
+          RELEASE_BRANCH="${GITHUB_REF_NAME}"
+          
+          echo "Abrindo PR de $RELEASE_BRANCH para main..."
+          gh pr create \
+            --base main \
+            --head "$RELEASE_BRANCH" \
+            --title "Release ${APP_VERSION} -> main" \
+            --body "Este PR mescla a release **${APP_VERSION}** na branch **main** para deploy em produção." || true

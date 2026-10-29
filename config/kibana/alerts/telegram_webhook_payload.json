@@ -1,0 +1,5 @@
+{
+  "chat_id": "${TELEGRAM_CHAT_ID}",
+  "text": "🚨 *[ALERTA DE INFRAESTRUTURA - MICROSERVIÇOS]* 🚨\n\n*Serviço Afetado:* `{{context.service}}`\n*Regra:* {{context.rule.name}}\n*Severidade:* CRITICAL\n*Filtro:* `service.keyword: * AND level: error`\n*Total de Erros Detectados:* {{context.hits}}\n*Janela de Análise:* Últimos 5 minutos\n\n📌 *Resumo do Log:* {{context.message}}\n\n🔗 [Abrir no Kibana Discover](http://localhost:5601/app/r/s/discover)",
+  "parse_mode": "Markdown"
+}
