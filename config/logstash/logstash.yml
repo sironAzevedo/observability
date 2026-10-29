@@ -1,5 +1,8 @@
-# Logstash Performance Tuning Configuration
+# Logstash Configuration
 # Conforme Guia Técnico Avançado Elastic Stack
+
+# Permite acesso ao endpoint HTTP de status/métricas
+http.host: "0.0.0.0"
 
 # Quantidade de workers paralelos para execução de filtros e saídas
 pipeline.workers: 2

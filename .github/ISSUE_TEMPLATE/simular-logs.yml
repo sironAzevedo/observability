@@ -1,0 +1,59 @@
+name: "🧪 Simulação de Logs & Testes (Sob Demanda)"
+description: "Inicia temporariamente o container simulador na VPS para injetar cenários de log/alertas e encerra automaticamente."
+title: "[SIMULAÇÃO]: "
+labels: ["simulacao-logs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🚀 Simulador de Carga e Cenários de Log (Elastic Stack)
+        Ao abrir esta issue, um container Docker efêmero (`app-simulator`) será iniciado sob demanda na VPS na rede `app-network`.
+        Ele transmitirá os logs estruturados no padrão corporativo, os quais serão coletados pelo Filebeat e Logstash em tempo real.
+        **Ao final da duração configurada, o container se encerrará e será removido automaticamente.**
+
+  - type: dropdown
+    id: scenario
+    attributes:
+      label: "Cenário de Teste"
+      description: "Selecione o cenário que deseja simular"
+      options:
+        - "normal - Baseline estável (2 logs/s)"
+        - "burst - Pico de tráfego / Carga elevada (50 logs/s)"
+        - "error-spike - Rajada de Erros 500 / Validação de Alertas no Telegram (15 logs/s)"
+        - "all - Execução sequencial de todos os cenários"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: "Microsserviço Alvo"
+      description: "Selecione a aplicação alvo da simulação"
+      options:
+        - "todos (Distribuição entre todos os serviços)"
+        - "fatura-service"
+        - "caderneta-user-services"
+        - "caderneta-dashboard-services"
+        - "notification-service"
+        - "automacao-resgate-fatura"
+        - "auth-api"
+    validations:
+      required: true
+
+  - type: input
+    id: duration
+    attributes:
+      label: "Duração do Teste (em segundos)"
+      description: "Tempo em segundos que o container gerará logs antes de se autodestruir (ex: 30, 60, 120)"
+      placeholder: "60"
+    validations:
+      required: false
+
+  - type: input
+    id: rate
+    attributes:
+      label: "Taxa de Logs por Segundo (Rate)"
+      description: "Quantidade de logs por segundo (deixe em branco para usar o padrão recomendado do cenário)"
+      placeholder: "5"
+    validations:
+      required: false

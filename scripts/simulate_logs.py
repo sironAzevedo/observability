@@ -15,9 +15,16 @@ import sys
 import time
 from datetime import datetime, timezone
 
-SERVICES = ["auth-service", "payment-service", "order-service", "inventory-service", "notification-service"]
+SERVICES = [
+    "caderneta-user-services",
+    "fatura-service",
+    "caderneta-dashboard-services",
+    "notification-service",
+    "automacao-resgate-fatura",
+    "auth-api"
+]
 USERS = ["usr_101", "usr_202", "usr_303", "usr_404", "usr_505"]
-ENDPOINTS = ["/api/v1/checkout", "/api/v1/login", "/api/v1/orders", "/api/v1/products", "/api/v1/notifications"]
+ENDPOINTS = ["/api/v1/checkout", "/api/v1/login", "/api/v1/orders", "/api/v1/faturas", "/api/v1/caderneta", "/api/v1/notifications"]
 
 INFO_MESSAGES = [
     "User authentication successful",
@@ -44,7 +51,7 @@ ERROR_MESSAGES = [
     "JWT token validation failed: Expired signature"
 ]
 
-def generate_log(mode: str) -> dict:
+def generate_log(mode: str, service_override: str = None) -> dict:
     if mode == "error-spike":
         level = random.choices(["error", "warn", "fatal"], weights=[0.75, 0.15, 0.10])[0]
     elif mode == "burst":
@@ -52,7 +59,7 @@ def generate_log(mode: str) -> dict:
     else:  # normal
         level = random.choices(["info", "warn", "error"], weights=[0.80, 0.15, 0.05])[0]
 
-    service = random.choice(SERVICES)
+    service = service_override if service_override else random.choice(SERVICES)
     user_id = random.choice(USERS)
     endpoint = random.choice(ENDPOINTS)
     
@@ -91,7 +98,8 @@ def generate_log(mode: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Simulador de Logs para Elastic Stack")
-    parser.add_argument("--mode", choices=["normal", "burst", "error-spike"], default="normal", help="Modo de simulação")
+    parser.add_argument("--mode", choices=["normal", "burst", "error-spike", "all"], default="normal", help="Modo de simulação")
+    parser.add_argument("--service", default="", help="Forçar nome de serviço específico (opcional)")
     parser.add_argument("--rate", type=float, default=2.0, help="Logs por segundo")
     parser.add_argument("--duration", type=int, default=30, help="Duração total em segundos (0 para infinito)")
     
@@ -100,15 +108,26 @@ def main():
     interval = 1.0 / args.rate if args.rate > 0 else 0.5
     start_time = time.time()
     count = 0
+    service_override = args.service.strip() if args.service else None
 
-    print(f"--- Iniciando simulação de logs [Modo: {args.mode.upper()} | Rate: {args.rate}/s | Duração: {args.duration}s] ---", file=sys.stderr)
+    print(f"--- Iniciando simulação de logs [Modo: {args.mode.upper()} | Rate: {args.rate}/s | Duração: {args.duration}s | Serviço: {service_override or 'Todos'}] ---", file=sys.stderr)
+
+    modes = ["normal", "burst", "error-spike"] if args.mode == "all" else [args.mode]
+    phase_duration = (args.duration / len(modes)) if args.duration > 0 else 0
 
     try:
         while True:
-            if args.duration > 0 and (time.time() - start_time) >= args.duration:
+            elapsed = time.time() - start_time
+            if args.duration > 0 and elapsed >= args.duration:
                 break
             
-            log_data = generate_log(args.mode)
+            if args.mode == "all" and phase_duration > 0:
+                current_mode_idx = min(int(elapsed / phase_duration), len(modes) - 1)
+                active_mode = modes[current_mode_idx]
+            else:
+                active_mode = args.mode
+
+            log_data = generate_log(active_mode, service_override=service_override)
             print(json.dumps(log_data), flush=True)
             count += 1
             time.sleep(interval)
