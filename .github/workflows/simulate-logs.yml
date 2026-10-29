@@ -1,0 +1,184 @@
+name: 🧪 On-Demand Log Simulator
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Cenário de teste"
+        required: true
+        default: "normal"
+        type: choice
+        options:
+          - "normal"
+          - "burst"
+          - "error-spike"
+          - "all"
+      service:
+        description: "Serviço alvo (ou vazio para todos)"
+        required: false
+        default: ""
+        type: string
+      duration:
+        description: "Duração em segundos"
+        required: false
+        default: "60"
+        type: string
+      rate:
+        description: "Taxa de logs por segundo (vazio para default)"
+        required: false
+        default: "5"
+        type: string
+      environment:
+        description: "Ambiente (prod ou dev)"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - "prod"
+          - "dev"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-simulator:
+    name: Execute Ephemeral Simulator Container
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && (
+        contains(github.event.issue.labels.*.name, 'simulacao-logs') ||
+        startsWith(github.event.issue.title, '[SIMULAÇÃO]')
+      ))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse Issue Parameters
+        id: parse_params
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "SCENARIO=${{ inputs.scenario }}" >> $GITHUB_OUTPUT
+            echo "SERVICE=${{ inputs.service }}" >> $GITHUB_OUTPUT
+            echo "DURATION=${{ inputs.duration }}" >> $GITHUB_OUTPUT
+            echo "RATE=${{ inputs.rate }}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "ISSUE_NUMBER=" >> $GITHUB_OUTPUT
+          else
+            ISSUE_BODY=$(cat <<'EOF'
+          ${{ github.event.issue.body }}
+          EOF
+          )
+            echo "Analisando dados do formulário da Issue..."
+            
+            # Extrair cenário
+            SCENARIO="normal"
+            if echo "$ISSUE_BODY" | grep -iE 'burst' > /dev/null; then
+              SCENARIO="burst"
+            elif echo "$ISSUE_BODY" | grep -iE 'error-spike' > /dev/null; then
+              SCENARIO="error-spike"
+            elif echo "$ISSUE_BODY" | grep -iE 'all' > /dev/null; then
+              SCENARIO="all"
+            fi
+
+            # Extrair serviço
+            SERVICE=""
+            if echo "$ISSUE_BODY" | grep -E 'fatura-service|caderneta-user-services|caderneta-dashboard-services|notification-service|automacao-resgate-fatura|auth-api' > /dev/null; then
+              SERVICE=$(echo "$ISSUE_BODY" | grep -oE 'fatura-service|caderneta-user-services|caderneta-dashboard-services|notification-service|automacao-resgate-fatura|auth-api' | head -n1)
+            fi
+
+            # Extrair duração
+            DURATION=$(echo "$ISSUE_BODY" | grep -A 2 -i "Duração" | grep -oE '[0-9]+' | head -n1 || echo "")
+            DURATION="${DURATION:-60}"
+
+            # Extrair rate
+            RATE=$(echo "$ISSUE_BODY" | grep -A 2 -i "Taxa" | grep -oE '[0-9]+(\.[0-9]+)?' | head -n1 || echo "")
+            if [ -z "$RATE" ]; then
+              case "$SCENARIO" in
+                burst) RATE="50" ;;
+                error-spike) RATE="15" ;;
+                *) RATE="2" ;;
+              esac
+            fi
+
+            echo "SCENARIO=${SCENARIO}" >> $GITHUB_OUTPUT
+            echo "SERVICE=${SERVICE}" >> $GITHUB_OUTPUT
+            echo "DURATION=${DURATION}" >> $GITHUB_OUTPUT
+            echo "RATE=${RATE}" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=prod" >> $GITHUB_OUTPUT
+            echo "ISSUE_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Acknowledge Request on Issue
+        if: steps.parse_params.outputs.ISSUE_NUMBER != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --body "🚀 **Iniciando Simulação Sob Demanda na VPS!**
+          - **Cenário**: \`${{ steps.parse_params.outputs.SCENARIO }}\`
+          - **Serviço**: \`${{ steps.parse_params.outputs.SERVICE || 'Todos' }}\`
+          - **Duração**: \`${{ steps.parse_params.outputs.DURATION }}s\`
+          - **Taxa**: \`${{ steps.parse_params.outputs.RATE }} logs/s\`
+          
+          O container efêmero \`app-simulator\` está sendo executado e se autodestruirá ao final."
+
+      - name: Run Ephemeral Simulator on VPS via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          SCENARIO: ${{ steps.parse_params.outputs.SCENARIO }}
+          SERVICE: ${{ steps.parse_params.outputs.SERVICE }}
+          DURATION: ${{ steps.parse_params.outputs.DURATION }}
+          RATE: ${{ steps.parse_params.outputs.RATE }}
+          ENV_NAME: ${{ steps.parse_params.outputs.ENV_NAME }}
+        with:
+          host: ${{ secrets.vps-host }}
+          username: ${{ secrets.vps-username }}
+          key: ${{ secrets.vps-ssh-private-key }}
+          envs: SCENARIO,SERVICE,DURATION,RATE,ENV_NAME
+          script: |
+            set -euo pipefail
+            DEPLOY_PATH="$HOME/observability"
+            if [ "$ENV_NAME" = "dev" ]; then
+              DEPLOY_PATH="$HOME/observability-dev"
+            fi
+
+            cd "$DEPLOY_PATH"
+
+            SERVICE_FLAG=""
+            if [ -n "$SERVICE" ] && [ "$SERVICE" != "todos" ]; then
+              SERVICE_FLAG="--service $SERVICE"
+            fi
+
+            CONTAINER_NAME="app-simulator-job-${GITHUB_RUN_ID:-$$}"
+
+            echo "=========================================================="
+            echo "🧪 Subindo container simulador efêmero: $CONTAINER_NAME"
+            echo "⚙️ Cenário: $SCENARIO | Duração: ${DURATION}s | Rate: ${RATE}/s"
+            echo "=========================================================="
+
+            docker run --rm \
+              --name "$CONTAINER_NAME" \
+              --network app-network \
+              -v "${DEPLOY_PATH}/scripts:/scripts:ro" \
+              python:3.11-alpine \
+              python3 -u /scripts/simulate_logs.py --mode "$SCENARIO" --rate "$RATE" --duration "$DURATION" $SERVICE_FLAG
+
+            echo "=========================================================="
+            echo "✅ Container $CONTAINER_NAME encerrou e foi removido com sucesso!"
+            echo "=========================================================="
+
+      - name: Close Issue with Summary
+        if: steps.parse_params.outputs.ISSUE_NUMBER != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --body "✅ **Simulação Concluída com Sucesso!**
+          - **Cenário**: \`${{ steps.parse_params.outputs.SCENARIO }}\`
+          - **Duração**: \`${{ steps.parse_params.outputs.DURATION }}s\`
+          
+          Todos os logs foram transmitidos, ingeridos pelo Filebeat/Logstash e indexados no Elasticsearch.
+          O container de teste já foi encerrado e removido da VPS.
+          
+          📊 Consulte os logs gerados no Kibana pelo Discover no índice \`microservices-logs-*\`."
+          
+          gh issue close "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --reason "completed"

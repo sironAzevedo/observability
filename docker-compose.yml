@@ -5,7 +5,9 @@ services:
     restart: unless-stopped
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=${ELASTIC_SECURITY_ENABLED:-false}
+      - xpack.security.enabled=${ELASTIC_SECURITY_ENABLED:-true}
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
       - ES_JAVA_OPTS=-Xms${ES_HEAP:-512m} -Xmx${ES_HEAP:-512m}
     ports:
       - "${ES_PORT:-9200}:9200"
@@ -20,7 +22,7 @@ services:
         max-size: "20m"
         max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      test: ["CMD-SHELL", "curl -s -u elastic:$${ELASTIC_PASSWORD:-elastic123} http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
       interval: 10s
       timeout: 10s
       retries: 6
@@ -32,7 +34,12 @@ services:
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
       - SERVER_HOST=0.0.0.0
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-observability_kibana_encryption_key_secret_32char_min}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-observability_kibana_encryption_key_secret_32char_min}
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-observability_kibana_encryption_key_secret_32char_min}
     ports:
       - "${KIBANA_PORT:-5601}:5601"
     networks:
@@ -59,12 +66,13 @@ services:
     restart: unless-stopped
     environment:
       - LS_JAVA_OPTS=-Xms${LS_HEAP:-512m} -Xmx${LS_HEAP:-512m}
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
     ports:
       - "${LOGSTASH_PORT:-5044}:5044"
     volumes:
       - ./config/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
       - ./config/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - ./config/elasticsearch/index-template.json:/usr/share/logstash/pipeline/index-template.json:ro
     networks:
       - logging-net
       - app-network
@@ -76,6 +84,12 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:9600 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION:-8.13.0}
@@ -98,14 +112,75 @@ services:
     depends_on:
       - logstash
 
-  app-simulator:
-    image: alpine:3.19
-    container_name: app-simulator
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:${ELASTIC_VERSION:-8.13.0}
+    container_name: metricbeat
     restart: unless-stopped
-    command: >
-      sh -c "while true; do echo \"{\\\"level\\\":\\\"info\\\",\\\"service\\\":\\\"app-simulator\\\",\\\"message\\\":\\\"Application log pulse check\\\"}\" ; sleep 5; done"
+    user: root
+    command: metricbeat -e -strict.perms=false -system.hostfs=/hostfs
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
+    volumes:
+      - ./config/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /proc:/hostfs/proc:ro
     networks:
       - logging-net
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:${ELASTIC_VERSION:-8.13.0}
+    container_name: apm-server
+    restart: unless-stopped
+    command: apm-server -e -strict.perms=false
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
+    ports:
+      - "${APM_PORT:-8200}:8200"
+    volumes:
+      - ./config/apm-server/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    networks:
+      - logging-net
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:8200/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  app-simulator:
+    image: python:3.11-alpine
+    container_name: app-simulator
+    profiles:
+      - simulator
+    volumes:
+      - ./scripts:/scripts:ro
+    command: python3 -u /scripts/simulate_logs.py --mode normal --rate 2 --duration 60
+    networks:
+      - logging-net
+      - app-network
     logging:
       driver: "json-file"
       options:

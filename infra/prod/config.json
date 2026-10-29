@@ -11,7 +11,8 @@
   "ports": {
     "elasticsearch": "9200",
     "kibana": "5601",
-    "logstash": "5044"
+    "logstash": "5044",
+    "apm": "8200"
   },
   "environment": [
     {
@@ -24,7 +25,15 @@
     },
     {
       "name": "ELASTIC_SECURITY_ENABLED",
-      "value": "false"
+      "value": "true"
+    },
+    {
+      "name": "ELASTIC_PASSWORD",
+      "value": "SECRET::ELASTIC_PASSWORD"
+    },
+    {
+      "name": "KIBANA_ENCRYPTION_KEY",
+      "value": "SECRET::KIBANA_ENCRYPTION_KEY"
     },
     {
       "name": "ES_HEAP",
@@ -45,6 +54,10 @@
     {
       "name": "LOGSTASH_PORT",
       "value": "5044"
+    },
+    {
+      "name": "APM_PORT",
+      "value": "8200"
     },
     {
       "name": "APP_NETWORK_NAME",

@@ -1,0 +1,14 @@
+apm-server:
+  host: "0.0.0.0:8200"
+  rum:
+    enabled: true
+
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOSTS:http://elasticsearch:9200}"]
+  username: "${ELASTIC_USER:elastic}"
+  password: "${ELASTIC_PASSWORD:elastic123}"
+
+queue.mem:
+  events: 4096
+
+max_procs: 2
