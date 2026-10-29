@@ -1,7 +1,7 @@
 {
   "nameAPP": "observability-stack-dev",
   "port": "5601",
-  "deployPath": "/opt/observability-dev",
+  "deployPath": "~/observability-dev",
   "dockerNetwork": "app-network",
   "configContainer": {
     "cpus": "1.0",
