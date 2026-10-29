@@ -1,0 +1,159 @@
+name: "[CI] - Build e Test"
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'feature/*'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lint_and_validate:
+    name: Lint & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate JSON configuration files
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          echo "Validating infra/prod/config.json..."
+          jq . infra/prod/config.json > /dev/null
+          
+          echo "Validating infra/dev/config.json..."
+          jq . infra/dev/config.json > /dev/null
+          
+          echo "Validating config/elasticsearch/ilm-policy.json..."
+          jq . config/elasticsearch/ilm-policy.json > /dev/null
+          
+          echo "Validating config/elasticsearch/index-template.json..."
+          jq . config/elasticsearch/index-template.json > /dev/null
+          
+          echo "Validating config/kibana/alerts/telegram_webhook_payload.json..."
+          jq . config/kibana/alerts/telegram_webhook_payload.json > /dev/null
+          echo "✅ All JSON files are valid!"
+
+      - name: Validate Python simulation script syntax
+        run: |
+          python -m py_compile scripts/simulate_logs.py
+          echo "✅ Python simulation script syntax is valid!"
+
+      - name: Validate Shell scripts
+        run: |
+          bash -n scripts/run_scenarios.sh
+          bash -n scripts/setup_vps.sh
+          echo "✅ Shell scripts syntax is valid!"
+
+      - name: Validate Docker Compose Configuration
+        run: |
+          cp .env.example .env
+          docker compose config > /dev/null
+          rm .env
+          echo "✅ Docker Compose file is completely valid!"
+
+  create_release_branch_and_pr:
+    name: Create Release Branch and Open PR
+    runs-on: ubuntu-latest
+    needs: lint_and_validate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Determine Next Version
+        id: determine_version
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
+          DOCKER_REPO: ${{ secrets.REPO_DOCKER }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq curl
+          
+          APP_NAME=$(jq -r '.nameAPP // "observability-stack"' infra/prod/config.json)
+          echo "App Name: $APP_NAME"
+          
+          HIGHEST_PATCH=0
+          
+          # 1. Checar Docker Hub se credenciais estiverem disponíveis
+          if [ -n "$DOCKER_USER" ] && [ -n "$DOCKER_PASS" ] && [ -n "$DOCKER_REPO" ]; then
+            LOGIN_RES=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"${DOCKER_USER}\", \"password\": \"${DOCKER_PASS}\"}" https://hub.docker.com/v2/users/login/)
+            TOKEN=$(echo "$LOGIN_RES" | jq -r '.token // empty')
+            
+            if [ -n "$TOKEN" ]; then
+              TAGS_JSON=$(curl -s -H "Authorization: JWT ${TOKEN}" "https://hub.docker.com/v2/repositories/${DOCKER_REPO}/${APP_NAME}/tags?page_size=100")
+              TAGS=$(echo "$TAGS_JSON" | jq -r '.results[]?.name // empty')
+              
+              for tag in $TAGS; do
+                if [[ "$tag" =~ ^1\.0\.([0-9]+)$ ]]; then
+                  PATCH_NUM="${BASH_REMATCH[1]}"
+                  if (( PATCH_NUM > HIGHEST_PATCH )); then
+                    HIGHEST_PATCH=$PATCH_NUM
+                  fi
+                fi
+              done
+            fi
+          fi
+
+          # 2. Checar Git Tags remotas (ex: v1.0.1, 1.0.1)
+          git fetch --tags origin 2>/dev/null || true
+          GIT_TAG_PATCHES=$(git tag -l 2>/dev/null | grep -oE '1\.0\.[0-9]+' | cut -d'.' -f3 || true)
+          for patch in $GIT_TAG_PATCHES; do
+            if [ -n "$patch" ] && (( patch > HIGHEST_PATCH )); then
+              HIGHEST_PATCH=$patch
+            fi
+          done
+
+          # 3. Checar Branches de Release remotas (ex: origin/release/1.0.1)
+          git fetch origin 2>/dev/null || true
+          GIT_BRANCH_PATCHES=$(git branch -r 2>/dev/null | grep -oE 'release/1\.0\.[0-9]+' | cut -d'/' -f3 | cut -d'.' -f3 || true)
+          for patch in $GIT_BRANCH_PATCHES; do
+            if [ -n "$patch" ] && (( patch > HIGHEST_PATCH )); then
+              HIGHEST_PATCH=$patch
+            fi
+          done
+
+          NEXT_PATCH=$(( HIGHEST_PATCH + 1 ))
+          NEW_VERSION="1.0.${NEXT_PATCH}"
+          RELEASE_BRANCH="release/${NEW_VERSION}"
+          
+          echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_OUTPUT
+          echo "✅ Próxima versão de release determinada: ${NEW_VERSION} (Branch: ${RELEASE_BRANCH})"
+
+      - name: Create Target Release Branch and Open PR via GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          RELEASE_BRANCH="${{ steps.determine_version.outputs.RELEASE_BRANCH }}"
+          FEATURE_BRANCH="${{ github.ref_name }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git fetch origin main
+          
+          if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH"; then
+            echo "Branch $RELEASE_BRANCH já existe no remoto."
+          else
+            echo "Criando branch $RELEASE_BRANCH a partir da main..."
+            git checkout -b "$RELEASE_BRANCH" origin/main
+            git push origin "$RELEASE_BRANCH"
+          fi
+          
+          echo "Abrindo PR de $FEATURE_BRANCH para $RELEASE_BRANCH..."
+          gh pr create \
+            --base "$RELEASE_BRANCH" \
+            --head "$FEATURE_BRANCH" \
+            --title "PR: Merge ${FEATURE_BRANCH} -> ${RELEASE_BRANCH}" \
+            --body "Este PR mescla as alterações de **${FEATURE_BRANCH}** na branch de release **${RELEASE_BRANCH}**." || true

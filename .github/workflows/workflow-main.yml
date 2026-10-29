@@ -1,4 +1,4 @@
-name: "[PROD] - Observability Deploy"
+name: "[PROD] - CI/CD Deploy"
 
 on:
   push:
@@ -7,16 +7,17 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   deploy:
-    name: Execute Deploy
+    name: Execute deploy
     uses: ./.github/workflows/execute-deploy.yml
     with:
       environment: 'prod'
       github_environment: 'production'
     secrets:
+      github-token: ${{ secrets.GH_TOKEN }}
       vps-host: ${{ secrets.VPS_HOST }}
       vps-username: ${{ secrets.VPS_USERNAME }}
       vps-ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}

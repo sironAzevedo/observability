@@ -1,6 +1,7 @@
 # 📊 Observability Stack - Elastic Stack (ELK / EFK)
 
-[![CI - Lint & Validation](https://github.com/sirondba/observability/actions/workflows/ci.yml/badge.svg)](https://github.com/sirondba/observability/actions/workflows/ci.yml)
+[![CI - Build & Test](https://github.com/sirondba/observability/actions/workflows/deployment-ci.yml/badge.svg)](https://github.com/sirondba/observability/actions/workflows/deployment-ci.yml)
+[![RELEASE - Build & Publish](https://github.com/sirondba/observability/actions/workflows/release.yml/badge.svg)](https://github.com/sirondba/observability/actions/workflows/release.yml)
 [![PROD - Deploy](https://github.com/sirondba/observability/actions/workflows/workflow-main.yml/badge.svg)](https://github.com/sirondba/observability/actions/workflows/workflow-main.yml)
 
 Repositório central de infraestrutura e observabilidade baseado no **Elastic Stack (Elasticsearch, Kibana, Logstash, Filebeat)** com ingestão estruturada de logs, dashboards operacionais dinâmicos (`service.keyword`), regras de alerta integradas via **Telegram Bot** e pipeline de deploy contínuo via **GitHub Actions** na VPS.
@@ -57,9 +58,11 @@ flowchart LR
 .
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                 # Lint e validação de compose, JSONs e scripts
+│       ├── deployment-ci.yml      # CI: Lint, cálculo de versão 1.0.X, criação de release e PR
+│       ├── release.yml            # Release: Validação da release e abertura de PR para main
+│       ├── workflow-main.yml      # Gatilho de deploy automático em push na branch main
 │       ├── execute-deploy.yml     # Workflow reutilizável de deploy na VPS com SSH/SCP
-│       └── workflow-main.yml      # Gatilho de deploy automático em push na branch main
+│       └── rollback-deploy.yml    # Rollback automatizado via issue ou workflow_dispatch
 ├── config/
 │   ├── elasticsearch/
 │   │   ├── ilm-policy.json        # Política de ciclo de vida de índices (Hot/Warm/Cold/Delete)
@@ -140,19 +143,32 @@ sudo sysctl --system
 
 O deploy é 100% automatizado via **GitHub Actions**, seguindo o mesmo padrão dos microsserviços (`fatura-service`, `user-services`, `auth-api`):
 
+### Ciclo Completo de Branches e PRs (Padrão dos Projetos)
+
+```text
+feature/* ──(push)──> [CI] deployment-ci.yml ──(cria branch & PR)──> release/1.0.X
+                                                                          │
+                                                                   (merge feature)
+                                                                          │
+main <──(cria PR para main)── [RELEASE] release.yml <──(push)────────────┘
+ │
+(merge release PR)
+ │
+ └──(push na main)──> [PROD] workflow-main.yml ──> execute-deploy.yml (Deploy VPS & Git Tag)
+```
+
 ### Workflows Disponíveis
-- **`[CI] - Lint & Validation`**: Disparado em pull requests e branches `feature/**`. Valida a sintaxe do `docker-compose.yml`, esquemas JSON e scripts em Python/Shell.
-- **`[PROD] - Observability Deploy`**: Disparado automaticamente ao mesclar código na branch `main` ou manualmente via `workflow_dispatch`.
-- **`Observability Stack Deploy`**: Workflow reutilizável (`execute-deploy.yml`) que:
-  1. Lê os parâmetros de `infra/prod/config.json`.
-  2. Substitui referências de segredos (`SECRET::...`) a partir do secret `APP_SECRETS`.
-  3. Transfere os manifests e arquivos de configuração para `/opt/observability` na VPS via SCP (`appleboy/scp-action`).
-  4. Executa na VPS: `docker compose pull`, `docker compose up -d` e bateria de health checks no Elasticsearch e Kibana via SSH (`appleboy/ssh-action`).
+- **`[CI] - Build e Test` (`deployment-ci.yml`)**: Disparado em branches `feature/**`. Valida compose, JSONs e scripts, determina a versão `1.0.X`, cria a branch `release/1.0.X` e abre o PR da `feature` para a `release`.
+- **`[RELEASE] - Build & Publish` (`release.yml`)**: Disparado em branches `release/**`. Valida a stack e **abre o Pull Request da branch de release para a `main` via GitHub CLI**.
+- **`[PROD] - CI/CD Deploy` (`workflow-main.yml`)**: Disparado quando o PR da release é mergeado na `main`. Executa o deploy oficial na VPS.
+- **`Observability Stack Deploy` (`execute-deploy.yml`)**: Workflow reutilizável com transferência SCP, deploy SSH na VPS e criação da Release Tag no GitHub (`v1.0.X`).
+- **`[ROLLBACK] - Deploy de Emergência` (`rollback-deploy.yml`)**: Permite rollback rápido para tags anteriores via Issue ou `workflow_dispatch`.
 
 ### Secrets a Configurar no GitHub (`Settings > Secrets and variables > Actions`)
 
 | Secret | Obrigatório? | Descrição |
 | :--- | :---: | :--- |
+| `GH_TOKEN` | **Sim** | Personal Access Token com escopo de `repo` para criação de branches e PRs |
 | `VPS_HOST` | **Sim** | IP público ou domínio da sua VPS |
 | `VPS_USERNAME` | **Sim** | Usuário SSH do servidor (ex: `root` ou `ubuntu`) |
 | `VPS_SSH_PRIVATE_KEY` | **Sim** | Chave privada SSH autorizada na VPS |
