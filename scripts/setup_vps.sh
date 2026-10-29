@@ -10,7 +10,7 @@ echo "=========================================================="
 echo "    PREPARAÇÃO DA VPS PARA STACK DE OBSERVABILIDADE       "
 echo "=========================================================="
 
-DEPLOY_PATH="${1:-/opt/observability}"
+DEPLOY_PATH="${1:-$HOME/observability}"
 DOCKER_NETWORK="${2:-app-network}"
 
 echo ">>> 1. Configurando parâmetros de memória do Kernel para o Elasticsearch..."
