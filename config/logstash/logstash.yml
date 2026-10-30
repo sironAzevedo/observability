@@ -4,6 +4,10 @@
 # Permite acesso ao endpoint HTTP de status/métricas
 http.host: "0.0.0.0"
 
+# Recarregamento automático contínuo de alterações no pipeline (logstash.conf)
+config.reload.automatic: true
+config.reload.interval: 5s
+
 # Quantidade de workers paralelos para execução de filtros e saídas
 pipeline.workers: 2
 
