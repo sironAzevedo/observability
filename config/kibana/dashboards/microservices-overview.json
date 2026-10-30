@@ -1,0 +1,45 @@
+{
+  "attributes": {
+    "title": "Observabilidade - Visão Geral de Microsserviços",
+    "description": "Dashboard dinâmico para visualização de logs das aplicações com filtro por service.keyword",
+    "optionsJSON": "{\"hidePanelTitles\": false, \"syncColors\": true, \"syncCursor\": true, \"syncTooltips\": true, \"useMargins\": true}",
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{\"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filter\": []}"
+    },
+    "controlGroupInput": {
+      "chainingSystem": "HIERARCHICAL",
+      "controlStyle": "oneLine",
+      "ignoreParentSettingsJSON": "{\"ignoreFilters\": false, \"ignoreQuery\": false, \"ignoreTimerange\": false, \"ignoreValidations\": false}",
+      "panelsJSON": "{\"service-filter\": {\"explicitInput\": {\"enhancements\": {}, \"fieldName\": \"service.keyword\", \"id\": \"service-filter\", \"selectedOptions\": [], \"title\": \"Microsserviço (service.keyword)\"}, \"grow\": true, \"order\": 0, \"type\": \"optionsListControl\", \"width\": \"medium\"}, \"level-filter\": {\"explicitInput\": {\"enhancements\": {}, \"fieldName\": \"level.keyword\", \"id\": \"level-filter\", \"selectedOptions\": [], \"title\": \"Nível do Log (level.keyword)\"}, \"grow\": true, \"order\": 1, \"type\": \"optionsListControl\", \"width\": \"medium\"}}"
+    },
+    "panelsJSON": "[{\"gridData\": {\"h\": 4, \"w\": 48, \"x\": 0, \"y\": 0, \"i\": \"p-header\"}, \"panelIndex\": \"p-header\", \"title\": \"\", \"type\": \"visualization\", \"embeddableConfig\": {\"hidePanelTitles\": true, \"savedVis\": {\"type\": \"markdown\", \"title\": \"\", \"description\": \"\", \"params\": {\"markdown\": \"## 📊 Central de Observabilidade - Visão Geral de Logs\\nUtilize os seletores dinâmicos acima para filtrar os dados por **service.keyword** e **level.keyword**. Alertas de erro são disparados em tempo real no Telegram.\", \"fontSize\": 12, \"openLinksInNewTab\": false}, \"data\": {\"searchSource\": {\"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filter\": []}, \"aggs\": []}, \"uiState\": {}}}}, {\"gridData\": {\"h\": 12, \"w\": 24, \"x\": 0, \"y\": 4, \"i\": \"p-pie-level\"}, \"panelIndex\": \"p-pie-level\", \"title\": \"Distribuição de Logs por Severidade (level.keyword)\", \"type\": \"lens\", \"embeddableConfig\": {\"title\": \"Distribuição de Logs por Severidade\", \"attributes\": {\"title\": \"Distribuição por Level\", \"type\": \"lens\", \"visualizationType\": \"lnsPie\", \"references\": [{\"id\": \"810590b1-3456-4b0a-b596-a30e0eed0abb\", \"name\": \"indexpattern-datasource-layer-pie\", \"type\": \"index-pattern\"}], \"state\": {\"visualization\": {\"shape\": \"donut\", \"layerId\": \"pie-layer\", \"layerType\": \"data\", \"groupsAccessor\": \"col-level\", \"metricAccessor\": \"col-count\", \"legend\": {\"isVisible\": true, \"position\": \"right\"}}, \"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filters\": [], \"datasourceStates\": {\"formBased\": {\"layers\": {\"pie-layer\": {\"columns\": {\"col-level\": {\"dataType\": \"string\", \"isBucketed\": true, \"label\": \"Nível de Severidade\", \"operationType\": \"terms\", \"params\": {\"orderBy\": {\"type\": \"column\", \"columnId\": \"col-count\"}, \"orderDirection\": \"desc\", \"size\": 10}, \"scale\": \"ordinal\", \"sourceField\": \"level.keyword\"}, \"col-count\": {\"dataType\": \"number\", \"isBucketed\": false, \"label\": \"Total de Logs\", \"operationType\": \"count\", \"scale\": \"ratio\"}}, \"columnOrder\": [\"col-level\", \"col-count\"], \"incompleteColumns\": {}}}}}}}}, {\"gridData\": {\"h\": 12, \"w\": 24, \"x\": 24, \"y\": 4, \"i\": \"p-bar-service\"}, \"panelIndex\": \"p-bar-service\", \"title\": \"Volume de Logs por Serviço (service.keyword)\", \"type\": \"lens\", \"embeddableConfig\": {\"title\": \"Volume por Serviço\", \"attributes\": {\"title\": \"Volume por Microsserviço\", \"type\": \"lens\", \"visualizationType\": \"lnsXY\", \"references\": [{\"id\": \"810590b1-3456-4b0a-b596-a30e0eed0abb\", \"name\": \"indexpattern-datasource-layer-xy\", \"type\": \"index-pattern\"}], \"state\": {\"visualization\": {\"preferredSeriesType\": \"bar\", \"legend\": {\"isVisible\": false}, \"layers\": [{\"layerId\": \"xy-layer\", \"layerType\": \"data\", \"seriesType\": \"bar\", \"xAccessor\": \"col-service\", \"accessors\": [\"col-count\"]}]}, \"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filters\": [], \"datasourceStates\": {\"formBased\": {\"layers\": {\"xy-layer\": {\"columns\": {\"col-service\": {\"dataType\": \"string\", \"isBucketed\": true, \"label\": \"Microsserviço\", \"operationType\": \"terms\", \"params\": {\"orderBy\": {\"type\": \"column\", \"columnId\": \"col-count\"}, \"orderDirection\": \"desc\", \"size\": 10}, \"scale\": \"ordinal\", \"sourceField\": \"service.keyword\"}, \"col-count\": {\"dataType\": \"number\", \"isBucketed\": false, \"label\": \"Volume de Mensagens\", \"operationType\": \"count\", \"scale\": \"ratio\"}}, \"columnOrder\": [\"col-service\", \"col-count\"], \"incompleteColumns\": {}}}}}}}}, {\"gridData\": {\"h\": 12, \"w\": 48, \"x\": 0, \"y\": 16, \"i\": \"p-timeline\"}, \"panelIndex\": \"p-timeline\", \"title\": \"Evolução Temporal dos Logs por Severidade (@timestamp)\", \"type\": \"lens\", \"embeddableConfig\": {\"title\": \"Evolução Temporal dos Logs\", \"attributes\": {\"title\": \"Linha do Tempo dos Logs\", \"type\": \"lens\", \"visualizationType\": \"lnsXY\", \"references\": [{\"id\": \"810590b1-3456-4b0a-b596-a30e0eed0abb\", \"name\": \"indexpattern-datasource-layer-timeline\", \"type\": \"index-pattern\"}], \"state\": {\"visualization\": {\"preferredSeriesType\": \"bar_stacked\", \"legend\": {\"isVisible\": true, \"position\": \"top\"}, \"layers\": [{\"layerId\": \"timeline-layer\", \"layerType\": \"data\", \"seriesType\": \"bar_stacked\", \"xAccessor\": \"col-time\", \"accessors\": [\"col-count\"], \"splitAccessor\": \"col-level-split\"}]}, \"query\": {\"language\": \"kuery\", \"query\": \"\"}, \"filters\": [], \"datasourceStates\": {\"formBased\": {\"layers\": {\"timeline-layer\": {\"columns\": {\"col-time\": {\"dataType\": \"date\", \"isBucketed\": true, \"label\": \"Data / Hora\", \"operationType\": \"date_histogram\", \"params\": {\"interval\": \"auto\", \"dropPartials\": false, \"includeEmptyRows\": true}, \"scale\": \"interval\", \"sourceField\": \"@timestamp\"}, \"col-count\": {\"dataType\": \"number\", \"isBucketed\": false, \"label\": \"Contagem de Logs\", \"operationType\": \"count\", \"scale\": \"ratio\"}, \"col-level-split\": {\"dataType\": \"string\", \"isBucketed\": true, \"label\": \"Nível\", \"operationType\": \"terms\", \"params\": {\"orderBy\": {\"type\": \"column\", \"columnId\": \"col-count\"}, \"orderDirection\": \"desc\", \"size\": 5}, \"scale\": \"ordinal\", \"sourceField\": \"level.keyword\"}}, \"columnOrder\": [\"col-time\", \"col-count\", \"col-level-split\"], \"incompleteColumns\": {}}}}}}}}]",
+    "timeRestore": false
+  },
+  "references": [
+    {
+      "name": "controlGroup_service-filter:optionsListDataView",
+      "type": "index-pattern",
+      "id": "810590b1-3456-4b0a-b596-a30e0eed0abb"
+    },
+    {
+      "name": "controlGroup_level-filter:optionsListDataView",
+      "type": "index-pattern",
+      "id": "810590b1-3456-4b0a-b596-a30e0eed0abb"
+    },
+    {
+      "name": "p-pie-level:indexpattern-datasource-layer-pie",
+      "type": "index-pattern",
+      "id": "810590b1-3456-4b0a-b596-a30e0eed0abb"
+    },
+    {
+      "name": "p-bar-service:indexpattern-datasource-layer-xy",
+      "type": "index-pattern",
+      "id": "810590b1-3456-4b0a-b596-a30e0eed0abb"
+    },
+    {
+      "name": "p-timeline:indexpattern-datasource-layer-timeline",
+      "type": "index-pattern",
+      "id": "810590b1-3456-4b0a-b596-a30e0eed0abb"
+    }
+  ]
+}
