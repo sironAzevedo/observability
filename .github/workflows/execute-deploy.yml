@@ -308,7 +308,51 @@ jobs:
               echo "⚪️ Tentativa $i/30: aguardando Kibana (HTTP atual: $KIBANA_HTTP_CODE)..."
             done
 
-            if [ "$KIBANA_UP" != "true" ]; then
+            if [ "$KIBANA_UP" = "true" ]; then
+              # Instalar integração APM no Kibana / Elasticsearch automaticamente
+              echo "📦 Instalando integração Elastic APM no Kibana / Elasticsearch..."
+              for i in {1..5}; do
+                RESP=$(curl -s -u "elastic:${ELASTIC_PASS}" -X POST "http://localhost:${KIBANA_PORT}/api/fleet/epm/packages/apm/8.13.0" \
+                  -H "kbn-xsrf: true" \
+                  -H "Content-Type: application/json" \
+                  -d '{"force": true}' 2>/dev/null || true)
+                if echo "$RESP" | grep -Eq '"success":true|"response"|"name":"apm"'; then
+                  echo "✅ Integração Elastic APM instalada com sucesso via Fleet API!"
+                  break
+                fi
+                sleep 3
+              done
+
+              # Criar Data View para microservices-logs-* automaticamente no Kibana
+              echo "📊 Criando Data View para microservices-logs-* no Kibana..."
+              curl -s -u "elastic:${ELASTIC_PASS}" -X POST "http://localhost:${KIBANA_PORT}/api/data_views/data_view" \
+                -H "kbn-xsrf: true" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "data_view": {
+                    "title": "microservices-logs-*",
+                    "name": "microservices-logs",
+                    "timeFieldName": "@timestamp"
+                  }
+                }' > /dev/null 2>&1 || true
+
+              # Criar Data View para metricbeat-* (Métricas de Containers Docker)
+              echo "📊 Criando Data View para metricbeat-* no Kibana..."
+              curl -s -u "elastic:${ELASTIC_PASS}" -X POST "http://localhost:${KIBANA_PORT}/api/data_views/data_view" \
+                -H "kbn-xsrf: true" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "data_view": {
+                    "title": "metricbeat-*",
+                    "name": "docker-metrics",
+                    "timeFieldName": "@timestamp"
+                  }
+                }' > /dev/null 2>&1 || true
+
+              # Reiniciar apm-server para reconhecer os templates recém-instalados
+              echo "🔄 Reiniciando apm-server para vincular com os templates instalados..."
+              docker compose restart apm-server || true
+            else
               echo "⚠️ Alerta: Kibana pode ainda estar inicializando. Verificando logs..."
               docker compose logs --tail=30 kibana
             fi
@@ -354,6 +398,18 @@ jobs:
             # 5.5 Validação dos containers
             echo "🩺 [5/5] Status geral dos containers da stack:"
             docker compose ps
+
+            # 5.6 Limpeza e Segurança de Containers Transitórios
+            echo "🧹 Removendo containers transitórios para economizar recursos e resguardar credenciais..."
+            # Remove container elasticsearch-setup após conclusão para não deixar senha exposta nas variáveis do container
+            docker rm -f elasticsearch-setup > /dev/null 2>&1 || true
+
+            # Garante que o app-simulator seja parado/removido caso tenha sido disparado em testes sob demanda
+            if docker ps -a --format '{{.Names}}' | grep -Eq '^app-simulator$'; then
+              echo "🛑 Removendo container residual do app-simulator..."
+              docker rm -f app-simulator > /dev/null 2>&1 || true
+            fi
+            echo "✅ Limpeza de containers transitórios finalizada."
 
             echo "=========================================================="
             echo "🎉 Deploy da stack finalizado com sucesso na VPS!"
