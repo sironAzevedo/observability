@@ -94,6 +94,7 @@ services:
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - TELEGRAM_ENDPOINT=${TELEGRAM_ENDPOINT:-https://api.telegram.org}
     ports:
       - "${LOGSTASH_PORT:-5044}:5044"
     volumes:
