@@ -399,6 +399,18 @@ jobs:
             echo "🩺 [5/5] Status geral dos containers da stack:"
             docker compose ps
 
+            # 5.6 Limpeza e Segurança de Containers Transitórios
+            echo "🧹 Removendo containers transitórios para economizar recursos e resguardar credenciais..."
+            # Remove container elasticsearch-setup após conclusão para não deixar senha exposta nas variáveis do container
+            docker rm -f elasticsearch-setup > /dev/null 2>&1 || true
+
+            # Garante que o app-simulator seja parado/removido caso tenha sido disparado em testes sob demanda
+            if docker ps -a --format '{{.Names}}' | grep -Eq '^app-simulator$'; then
+              echo "🛑 Removendo container residual do app-simulator..."
+              docker rm -f app-simulator > /dev/null 2>&1 || true
+            fi
+            echo "✅ Limpeza de containers transitórios finalizada."
+
             echo "=========================================================="
             echo "🎉 Deploy da stack finalizado com sucesso na VPS!"
             echo "=========================================================="
