@@ -61,9 +61,10 @@ jobs:
       - name: Comment on Issue - Rollback Started
         if: github.event_name == 'issues'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "🚀 **Rollback Iniciado!**
+          gh issue comment ${{ github.event.issue.number }} --repo "$GH_REPO" --body "🚀 **Rollback Iniciado!**
           
           - **Versão Alvo:** \`${{ steps.parse_inputs.outputs.TARGET_TAG }}\`
           - **Motivo:** ${{ steps.parse_inputs.outputs.REASON }}
@@ -98,21 +99,23 @@ jobs:
       - name: Comment and Close Issue on Success
         if: needs.execute_rollback_deploy.result == 'success'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "✅ **Rollback Concluído com Sucesso!**
+          gh issue comment ${{ github.event.issue.number }} --repo "$GH_REPO" --body "✅ **Rollback Concluído com Sucesso!**
           
           A versão **${{ needs.rollback_init.outputs.TARGET_TAG }}** foi implantada com sucesso em produção e validada via Health Check.
           
           Esta Issue foi encerrada automaticamente."
           
-          gh issue close ${{ github.event.issue.number }} --reason "completed"
+          gh issue close ${{ github.event.issue.number }} --repo "$GH_REPO" --reason "completed"
 
       - name: Comment on Failure
         if: needs.execute_rollback_deploy.result != 'success'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "❌ **Falha ao Executar o Rollback!**
+          gh issue comment ${{ github.event.issue.number }} --repo "$GH_REPO" --body "❌ **Falha ao Executar o Rollback!**
           
           Ocorreu um erro durante o deploy da versão **${{ needs.rollback_init.outputs.TARGET_TAG }}**. Verifique os logs do GitHub Actions para mais detalhes."
