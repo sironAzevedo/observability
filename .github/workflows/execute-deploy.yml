@@ -252,6 +252,10 @@ jobs:
             echo "🔄 Subindo containers da stack..."
             docker compose up -d --remove-orphans
 
+            # Reinicia o Logstash para recarregar quaisquer alterações de pipeline (logstash.conf)
+            echo "🔄 Recarregando container do Logstash..."
+            docker compose restart logstash || true
+
             # 5. Validação de Saúde (Health Checks)
             echo "⏳ Aguardando serviços ficarem operacionais..."
             
