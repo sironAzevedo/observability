@@ -71,8 +71,10 @@ flowchart TD
 
 A stack roda com a segurança básica ativada (`xpack.security.enabled=true`).
 
-- **Usuário Padrão:** `elastic`
-- **Senha Padrão:** `elastic123` (ou a senha configurada no segredo `ELASTIC_PASSWORD` no GitHub)
+- **Acesso ao Kibana (Web UI):** Faça login na interface web (`http://<IP_VPS>:5601`) com:
+  - **Usuário:** `elastic` (Superuser)
+  - **Senha:** `elastic123` (ou o valor definido no secret `ELASTIC_PASSWORD` no GitHub)
+- **Comunicação Interna do Kibana:** O Kibana se conecta ao Elasticsearch através do usuário de serviço interno `kibana_system`, cuja senha é provisionada automaticamente pelo container `elasticsearch-setup`.
 - **Kibana Encryption Keys:** Chaves de 32+ caracteres já pré-configuradas (`XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY`, `XPACK_REPORTING_ENCRYPTIONKEY`, `XPACK_SECURITY_ENCRYPTIONKEY`), liberando a funcionalidade de **Alerting e Criação de Connectors** (como o Webhook do Telegram).
 
 ---
