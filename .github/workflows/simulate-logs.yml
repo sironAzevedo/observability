@@ -54,6 +54,9 @@ jobs:
       ))
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Parse Issue Parameters
         id: parse_params
         run: |
@@ -113,8 +116,9 @@ jobs:
         if: steps.parse_params.outputs.ISSUE_NUMBER != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh issue comment "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --body "🚀 **Iniciando Simulação Sob Demanda na VPS!**
+          gh issue comment "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --repo "$GH_REPO" --body "🚀 **Iniciando Simulação Sob Demanda na VPS!**
           - **Cenário**: \`${{ steps.parse_params.outputs.SCENARIO }}\`
           - **Serviço**: \`${{ steps.parse_params.outputs.SERVICE || 'Todos' }}\`
           - **Duração**: \`${{ steps.parse_params.outputs.DURATION }}s\`
@@ -171,8 +175,9 @@ jobs:
         if: steps.parse_params.outputs.ISSUE_NUMBER != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh issue comment "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --body "✅ **Simulação Concluída com Sucesso!**
+          gh issue comment "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --repo "$GH_REPO" --body "✅ **Simulação Concluída com Sucesso!**
           - **Cenário**: \`${{ steps.parse_params.outputs.SCENARIO }}\`
           - **Duração**: \`${{ steps.parse_params.outputs.DURATION }}s\`
           
@@ -181,4 +186,4 @@ jobs:
           
           📊 Consulte os logs gerados no Kibana pelo Discover no índice \`microservices-logs-*\`."
           
-          gh issue close "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --reason "completed"
+          gh issue close "${{ steps.parse_params.outputs.ISSUE_NUMBER }}" --repo "$GH_REPO" --reason "completed"
