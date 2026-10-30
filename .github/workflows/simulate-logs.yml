@@ -135,9 +135,9 @@ jobs:
           RATE: ${{ steps.parse_params.outputs.RATE }}
           ENV_NAME: ${{ steps.parse_params.outputs.ENV_NAME }}
         with:
-          host: ${{ secrets.vps-host }}
-          username: ${{ secrets.vps-username }}
-          key: ${{ secrets.vps-ssh-private-key }}
+          host: ${{ secrets.VPS_HOST || secrets.vps_host || secrets['vps-host'] }}
+          username: ${{ secrets.VPS_USERNAME || secrets.vps_username || secrets['vps-username'] }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY || secrets.vps_ssh_private_key || secrets['vps-ssh-private-key'] }}
           envs: SCENARIO,SERVICE,DURATION,RATE,ENV_NAME
           script: |
             set -euo pipefail
