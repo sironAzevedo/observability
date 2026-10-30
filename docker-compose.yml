@@ -28,13 +28,35 @@ services:
       retries: 6
       start_period: 30s
 
+  elasticsearch-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.0}
+    container_name: elasticsearch-setup
+    restart: "no"
+    networks:
+      - logging-net
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command: >
+      bash -c '
+        echo "Configurando senha do usuário de sistema do Kibana (kibana_system)..."
+        until curl -s -u "elastic:$${ELASTIC_PASSWORD:-elastic123}" -X POST "http://elasticsearch:9200/_security/user/kibana_system/_password" \
+          -H "Content-Type: application/json" \
+          -d "{\"password\":\"$${ELASTIC_PASSWORD:-elastic123}\"}" | grep -q "^{}"; do
+          sleep 2
+        done
+        echo "Usuário kibana_system configurado com sucesso!"
+      '
+
   kibana:
     image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.13.0}
     container_name: kibana
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_USERNAME=kibana_system
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
       - SERVER_HOST=0.0.0.0
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-observability_kibana_encryption_key_secret_32char_min}
@@ -53,6 +75,8 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
+      elasticsearch-setup:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -s -I http://localhost:5601/api/status | grep -q 'HTTP/1.1 200' || curl -s http://localhost:5601/api/status | grep -q '\"overall\":{\"level\":\"available\"}'"]
       interval: 15s

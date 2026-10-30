@@ -275,6 +275,19 @@ jobs:
               exit 1
             fi
 
+            # 5.1.1 Configuração da senha do usuário interno kibana_system
+            echo "🔑 Garantindo configuração da senha do usuário interno kibana_system..."
+            for i in {1..10}; do
+              RESP=$(curl -s -u "elastic:${ELASTIC_PASS}" -X POST "http://localhost:${ES_PORT}/_security/user/kibana_system/_password" \
+                -H "Content-Type: application/json" \
+                -d "{\"password\":\"${ELASTIC_PASS}\"}" 2>/dev/null || true)
+              if echo "$RESP" | grep -q "{}"; then
+                echo "✅ Usuário kibana_system configurado com sucesso no Elasticsearch!"
+                break
+              fi
+              sleep 2
+            done
+
             # Aplicar Composable Index Template nativo no Elasticsearch
             echo "📋 Aplicando Index Template de microservices no Elasticsearch..."
             curl -s -u "elastic:${ELASTIC_PASS}" -X PUT "http://localhost:${ES_PORT}/_index_template/microservices-logs" \
@@ -325,7 +338,7 @@ jobs:
             for i in {1..20}; do
               sleep 2
               APM_STATUS=$(curl -s "http://localhost:${APM_PORT}/" 2>/dev/null || true)
-              if echo "$APM_STATUS" | grep -q "status"; then
+              if echo "$APM_STATUS" | grep -Eq 'status|version|build_date'; then
                 echo "✅ APM Server operacional e pronto para receber traces de microsserviços!"
                 APM_UP=true
                 break
