@@ -74,6 +74,10 @@
     {
       "name": "TELEGRAM_CHAT_ID",
       "value": "SECRET::TELEGRAM_CHAT_ID"
+    },
+    {
+      "name": "DISPATCHER_URL",
+      "value": "http://147.93.70.154:8088/api/v1/alerts"
     }
   ]
 }
