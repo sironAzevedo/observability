@@ -95,6 +95,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
       - TELEGRAM_ENDPOINT=${TELEGRAM_ENDPOINT:-https://api.telegram.org}
+      - DISPATCHER_URL=${DISPATCHER_URL:-http://147.93.70.154:8088/api/v1/alerts}
     ports:
       - "${LOGSTASH_PORT:-5044}:5044"
     volumes:
