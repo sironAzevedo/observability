@@ -298,6 +298,11 @@ jobs:
               -H "Content-Type: application/json" \
               -d @config/elasticsearch/index-template.json
 
+            echo "📋 Aplicando retenção do Metricbeat..."
+            curl -fsS -u "elastic:${ELASTIC_PASS}" -X PUT "http://localhost:${ES_PORT}/_ilm/policy/metricbeat" \
+              -H "Content-Type: application/json" \
+              -d @config/elasticsearch/ilm-metricbeat.json
+
             # Inicialização da Stack
             echo "🔄 Subindo containers da stack..."
             docker compose up -d --remove-orphans
