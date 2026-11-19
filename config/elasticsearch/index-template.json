@@ -3,9 +3,11 @@
   "template": {
     "settings": {
       "number_of_shards": 1,
-      "number_of_replicas": 0
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "microservices-logs-daily-retention"
     },
     "mappings": {
+      "subobjects": false,
       "properties": {
         "@timestamp": {
           "type": "date"
@@ -40,15 +42,11 @@
         "transactionid": {
           "type": "keyword"
         },
-        "container": {
-          "properties": {
-            "name": {
-              "type": "keyword"
-            },
-            "id": {
-              "type": "keyword"
-            }
-          }
+        "container.name": {
+          "type": "keyword"
+        },
+        "container.id": {
+          "type": "keyword"
         }
       }
     }
