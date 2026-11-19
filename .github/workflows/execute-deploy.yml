@@ -248,13 +248,8 @@ jobs:
             echo "📦 Baixando as imagens da stack..."
             docker compose pull
 
-            # 4. Inicialização da Stack
-            echo "🔄 Subindo containers da stack..."
-            docker compose up -d --remove-orphans
-
-            # Reinicia o Logstash para recarregar quaisquer alterações de pipeline (logstash.conf)
-            echo "🔄 Recarregando container do Logstash..."
-            docker compose restart logstash || true
+            # Iniciar o Elasticsearch para instalar a retenção antes da ingestão
+            docker compose up -d elasticsearch
 
             # 5. Validação de Saúde (Health Checks)
             echo "⏳ Aguardando serviços ficarem operacionais..."
@@ -292,11 +287,24 @@ jobs:
               sleep 2
             done
 
-            # Aplicar Composable Index Template nativo no Elasticsearch
-            echo "📋 Aplicando Index Template de microservices no Elasticsearch..."
-            curl -s -u "elastic:${ELASTIC_PASS}" -X PUT "http://localhost:${ES_PORT}/_index_template/microservices-logs" \
+            # Instalar a política antes do template que a referencia
+            echo "📋 Aplicando retenção de 90 dias aos novos índices de logs..."
+            curl -fsS -u "elastic:${ELASTIC_PASS}" -X PUT "http://localhost:${ES_PORT}/_ilm/policy/microservices-logs-daily-retention" \
               -H "Content-Type: application/json" \
-              -d @config/elasticsearch/index-template.json || true
+              -d @config/elasticsearch/ilm-daily-retention.json
+
+            echo "📋 Aplicando Index Template de microservices no Elasticsearch..."
+            curl -fsS -u "elastic:${ELASTIC_PASS}" -X PUT "http://localhost:${ES_PORT}/_index_template/microservices-logs" \
+              -H "Content-Type: application/json" \
+              -d @config/elasticsearch/index-template.json
+
+            # Inicialização da Stack
+            echo "🔄 Subindo containers da stack..."
+            docker compose up -d --remove-orphans
+
+            # Reinicia o Logstash para recarregar quaisquer alterações de pipeline (logstash.conf)
+            echo "🔄 Recarregando container do Logstash..."
+            docker compose restart logstash || true
 
             # 5.2 Validação do Kibana
             echo "🩺 [2/5] Verificando saúde do Kibana (porta $KIBANA_PORT)..."

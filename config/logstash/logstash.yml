@@ -12,7 +12,7 @@ config.reload.interval: 5s
 pipeline.workers: 2
 
 # Tamanho do lote de eventos antes de enviar via Bulk API para o Elasticsearch
-pipeline.batch.size: 250
+pipeline.batch.size: 125
 
 # Tempo máximo de espera (ms) para fechar um batch caso batch.size não seja atingido
 pipeline.batch.delay: 50
