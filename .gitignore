@@ -30,3 +30,4 @@ ENV/
 # Temporary files
 tmp/
 temp/
+/history

@@ -2,7 +2,9 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.0}
     container_name: elasticsearch
-    mem_limit: 2304m
+    mem_limit: 1536m
+    mem_reservation: 1024m
+    cpus: 1.2
     restart: unless-stopped
     environment:
       - discovery.type=single-node
@@ -54,8 +56,12 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.13.0}
     container_name: kibana
+    mem_limit: 768m
+    mem_reservation: 384m
+    cpus: 0.8
     restart: unless-stopped
     environment:
+      - NODE_OPTIONS=--max-old-space-size=512
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=kibana_system
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-elastic123}
@@ -88,7 +94,9 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.13.0}
     container_name: logstash
-    mem_limit: 1280m
+    mem_limit: 1024m
+    mem_reservation: 512m
+    cpus: 0.8
     restart: unless-stopped
     environment:
       - LS_JAVA_OPTS=-Xms${LS_HEAP:-512m} -Xmx${LS_HEAP:-512m}
@@ -124,6 +132,8 @@ services:
   filebeat:
     image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION:-8.13.0}
     container_name: filebeat
+    mem_limit: 256m
+    cpus: 0.3
     restart: unless-stopped
     user: root
     command: filebeat -e -strict.perms=false
@@ -145,6 +155,8 @@ services:
   metricbeat:
     image: docker.elastic.co/beats/metricbeat:${ELASTIC_VERSION:-8.13.0}
     container_name: metricbeat
+    mem_limit: 256m
+    cpus: 0.3
     restart: unless-stopped
     user: root
     command: metricbeat -e -strict.perms=false -system.hostfs=/hostfs
@@ -172,6 +184,8 @@ services:
   apm-server:
     image: docker.elastic.co/apm/apm-server:${ELASTIC_VERSION:-8.13.0}
     container_name: apm-server
+    mem_limit: 256m
+    cpus: 0.3
     restart: unless-stopped
     command: apm-server -e -strict.perms=false
     environment:

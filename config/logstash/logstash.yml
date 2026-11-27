@@ -9,7 +9,7 @@ config.reload.automatic: true
 config.reload.interval: 5s
 
 # Quantidade de workers paralelos para execução de filtros e saídas
-pipeline.workers: 2
+pipeline.workers: 1
 
 # Tamanho do lote de eventos antes de enviar via Bulk API para o Elasticsearch
 pipeline.batch.size: 125
