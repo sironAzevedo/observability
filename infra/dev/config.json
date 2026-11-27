@@ -37,7 +37,7 @@
     },
     {
       "name": "ES_HEAP",
-      "value": "512m"
+      "value": "1024m"
     },
     {
       "name": "LS_HEAP",
